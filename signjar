@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# SeeD419's jar signing script for *nix
+# 
+# This script assumes you have a ~/Documents directory by default...
+# If you do not, please change this below.
+#
+KEYDIR="~/Documents/"  # Directory to save keystore
+KEYEXT='.key'  # Extension for the keystore file
+GENERATE=""
+E_NOARGS=85
+E_CANTSIGN=33
+E_CANTGEN=45
+E_NOJAR=55
+E_SUCCESS=0
+E_UNRECOGNIZED=5
+
+if [ -z "$1" ]
+then
+  echo "Usage: `basename $0` jar-file"
+  exit $E_NOARGS
+fi  
+
+if [ $1 == "--help" ] ; then
+    echo "Usage: `basename $0` jar-file"
+elif [ -f $1 ] ; then
+    echo "$1 found..."
+    eval KEYLOC=$KEYDIR$1$KEYEXT
+    if [ -f $KEYLOC ] ; then
+	    echo "Keystore found..."
+	    jarsigner -verbose -keystore $KEYLOC $1 $1
+	    if [ $? = 0 ] ; then
+	        echo ""
+	        echo "$1 signed"
+	        exit $E_SUCCESS
+	    else
+	        echo "Couldn't sign jar"
+	        exit $E_CANTSIGN
+	    fi
+    else
+	    echo "Keystore not found, generate one? (y/n)"
+	    read generate
+	    if [ $generate == "y" ] ; then
+	        keytool -genkey -alias $1 -keyalg RSA -keystore $KEYLOC -keysize 2048  
+	        if [ $? = 0 ] ; then
+	            echo "Keystore generated successfully."
+	            echo "Signing jar..."
+	            jarsigner -keystore $KEYLOC $1 $1
+	            if [ $? = 0 ] ; then
+	                echo "$1 signed"
+	            else
+	                echo "Couldn't sign jar"
+	                exit $E_CANTSIGN
+	            fi
+	        else
+	            echo "Couldn't generate key, sorry."
+	            exit $E_CANTGEN
+	        fi
+	    elif [ $generate == "n" ] ; then
+	        echo "K bye"
+	        exit $E_SUCCESS
+	    else
+	        echo "Unrecognized response..."   
+	        exit $E_UNRECOGNIZED 
+	    fi
+    fi
+else
+    echo "$1 not found"
+    exit $E_NOJAR
+fi
